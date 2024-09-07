@@ -2,6 +2,7 @@ package bang_example
 
 import "core:strings"
 import "core:fmt"
+import "core:log"
 import "core:math"
 import "core:math/linalg"
 import glfw "vendor:glfw"
@@ -22,12 +23,12 @@ main :: proc() {
     cube_mesh, cube_material_data := bang.build_mesh_component("assets/cube.obj")
 
     if cube_material_data == nil {
-        bang.error("failed to load materials for cube.obj", .NilPtr)
+        bang.error(.NilPtr, "failed to load materials for cube.obj")
         return
     }
-    cube_material, err := bang.build_advanced_material(cube_material_data.?)
-    if !bang.ok(err) {
-        bang.error("failed to build cube material", err.t)
+    cube_material, cube_err := bang.build_advanced_material(cube_material_data.?)
+    if !bang.ok(cube_err) {
+        bang.error(cube_err.t, "failed to build cube material")
         return
     }
 
@@ -40,7 +41,7 @@ main :: proc() {
 
     floor_material, floor_err := bang.build_advanced_material(floor_material_data)
     if !bang.ok(floor_err) {
-        bang.error("failed to build floor material", err.t)
+        bang.error(floor_err.t, "failed to build floor material")
         return
     }
     floor_transform := bang.default_transform("floor")
@@ -57,7 +58,7 @@ main :: proc() {
 
     pos_x_wall_material, posx_err := bang.build_advanced_material(pos_x_wall_material_data)
     if !bang.ok(posx_err) {
-        bang.error("failed to build pos_x_wall material", err.t)
+        bang.error(posx_err.t, "failed to build pos_x_wall material")
         return
     }
     pos_x_wall_transform := bang.default_transform("pos_x_wall")
@@ -76,7 +77,7 @@ main :: proc() {
 
     neg_x_wall_material, negx_err := bang.build_advanced_material(neg_x_wall_material_data)
     if !bang.ok(negx_err) {
-        bang.error("failed to build neg_x_wall material", err.t)
+        bang.error(negx_err.t, "failed to build neg_x_wall material")
         return
     }
     neg_x_wall_transform := bang.default_transform("neg_x_wall")
@@ -106,17 +107,17 @@ main :: proc() {
     ceiling_material := cube_material
     ceiling_eid, _ := bang.add_entity_to_scene(&sg, [](^bang.Component){&ceiling_mesh, &ceiling_material, &ceiling_transform})
 
-    bang.debug_log("added walls to scene")
+    log.debug("added walls to scene")
     // Actors
     player_mesh, ball_material_data := bang.build_mesh_component("assets/ball.obj")
 
     if ball_material_data == nil {
-        bang.error("failed to load materials for ball.obj", .NilPtr)
+        bang.error(.NilPtr, "failed to load materials for ball.obj")
         return
     }
     ball_material, mat_err := bang.build_advanced_material(ball_material_data.?)
     if !bang.ok(mat_err) {
-        bang.error("failed to build ball material", err.t)
+        bang.error(mat_err.t, "failed to build ball material")
         return
     }
     player_transform := bang.default_transform("player")
@@ -126,13 +127,13 @@ main :: proc() {
         fmt.println("failed to add ball to scene")
         return
     }
-    bang.debug_log("added player to scene")
+    log.debug("added player to scene")
 
     sg.Systems["player_controller"] = proc(sg:^bang.SceneGraph) -> bang.Error {
         transform := bang.get_transform_by_name(sg, "player")
         if transform == nil {
             message := fmt.tprintf("failed to get transform for player with name: %s", "player")
-            return bang.error(message, .NilPtr)
+            return bang.error(.NilPtr, message)
         }
         if(bang.get_key_down(sg.InputManager, "w")) {
             transform.position.z += MOVE_SPEED
@@ -157,30 +158,34 @@ main :: proc() {
     }
     
     // Lights
-    white_light := bang.Light{
-        ctype = .Light,
-        color = {1,1,1},
-        position = {0,5,5},
-        intensity = 1.0
-    }
-    light_eid, light_err := bang.add_entity_to_scene(&sg, [](^bang.Component){&white_light})
-    if !bang.ok(err) {
-        fmt.println("failed to add light to scene")
-        return
-    }
-    bang.debug_log("added light to scene")
+    // white_light := bang.Light{
+    //     ctype = .Light,
+    //     color = {1,1,1},
+    //     position = {0,5,5},
+    //     intensity = 1.0
+    // }
+    // light_eid, light_err := bang.add_entity_to_scene(&sg, [](^bang.Component){&white_light})
+    // if !bang.ok(light_err) {
+    //     fmt.println("failed to add light to scene")
+    //     return
+    // }
+    // log.debug("added light to scene")
 
 
     
-    // red_light := Light{
-    //     color = {1,0,0},
-    //     position = {5,5,5}
-    // }
-    // blue_light := Light{
-    //     color = {0,0,1},
-    //     position = {-5,5,5}
-    // }
-    // add_entity_to_scene(&sg, [](^Component){&blue_light, &red_light})
+    red_light := bang.Light{
+        ctype = .Light,
+        color = {1,0,0},
+        position = {5,5,5},
+        intensity = 1.0
+    }
+    blue_light := bang.Light{
+        ctype = .Light,
+        color = {0,0,1},
+        position = {-5,5,5},
+        intensity = 1.0
+    }
+    bang.add_entity_to_scene(&sg, [](^bang.Component){&blue_light, &red_light})
 
     // Camera
     cam_transform := bang.default_transform()
@@ -197,7 +202,7 @@ main :: proc() {
         fmt.println("failed to add camera to scene")
         return
     }
-    bang.debug_log("added camera to scene")
+    log.debug("added camera to scene")
     sg.Renderer.projection_matrix = main_cam.projection_matrix
     sg.Renderer.view_matrix = main_cam.view_matrix
 
@@ -205,11 +210,11 @@ main :: proc() {
         cam_t := bang.get_main_camera_transform(sg)
         
         if cam_t == nil {
-            bang.error("failed to get camera transform", .NilPtr)
+            bang.error(.NilPtr, "failed to get camera transform")
         }
         player_transform := bang.get_transform_by_name(sg, "player")
         if player_transform == nil {
-            bang.error("failed to get player transform", .NilPtr)
+            bang.error(.NilPtr, "failed to get player transform")
         }
 
         bang.look_at(cam_t, player_transform.position)
